@@ -1,0 +1,11 @@
+TER PAYMENT RECEIPT
+
+Reference No: TER/2026-27/BPL/008845
+Name of Institution: LNCT Group of Colleges, Bhopal
+Issued by: AICTE Payment Gateway
+Issued to: Dr. Rakesh Mehta, Director
+Date of Issue: 05/10/2026
+
+Amount received: INR 1,50,000. Payment mode: Online. Payment status: Successful.
+
+[Synthetic test document created for prototype testing. Not an official record.]
