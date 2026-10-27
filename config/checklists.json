@@ -1,0 +1,317 @@
+{
+  "Extension of Approval (EoA)": [
+    {
+      "id": "affidavit",
+      "name": "Affidavit / Undertaking",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "affidavit,undertaking",
+      "custom_fields": []
+    },
+    {
+      "id": "accreditation",
+      "name": "NBA / NAAC Accreditation Certificate",
+      "required": true,
+      "has_expiry": true,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date",
+        "expiry_date"
+      ],
+      "keywords": "accreditation,NBA,NAAC",
+      "custom_fields": []
+    },
+    {
+      "id": "fire_noc",
+      "name": "Fire Safety NOC",
+      "required": true,
+      "has_expiry": true,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date",
+        "expiry_date"
+      ],
+      "keywords": "fire",
+      "custom_fields": []
+    },
+    {
+      "id": "society_reg",
+      "name": "Society / Trust Registration Certificate",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "trust,society,registration",
+      "custom_fields": []
+    },
+    {
+      "id": "state_noc",
+      "name": "State Government NOC / Essentiality Certificate",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "state government,essentiality,no objection",
+      "custom_fields": []
+    },
+    {
+      "id": "ter_receipt",
+      "name": "TER Payment Receipt",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "TER,receipt,payment",
+      "custom_fields": []
+    },
+    {
+      "id": "prev_eoa",
+      "name": "Previous EoA Letter",
+      "required": true,
+      "has_expiry": true,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date",
+        "expiry_date"
+      ],
+      "keywords": "extension of approval,EoA,approval",
+      "custom_fields": []
+    }
+  ],
+  "Increase / Decrease in Intake": [
+    {
+      "id": "affidavit",
+      "name": "Affidavit / Undertaking",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "affidavit,undertaking",
+      "custom_fields": []
+    },
+    {
+      "id": "accreditation",
+      "name": "NBA / NAAC Accreditation Certificate",
+      "required": true,
+      "has_expiry": true,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date",
+        "expiry_date"
+      ],
+      "keywords": "accreditation,NBA,NAAC",
+      "custom_fields": []
+    },
+    {
+      "id": "prev_eoa",
+      "name": "Previous EoA Letter",
+      "required": true,
+      "has_expiry": true,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date",
+        "expiry_date"
+      ],
+      "keywords": "extension of approval,EoA,approval",
+      "custom_fields": []
+    },
+    {
+      "id": "ter_receipt",
+      "name": "TER Payment Receipt",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "TER,receipt,payment",
+      "custom_fields": []
+    }
+  ],
+  "Change of Name / Society / Trust": [
+    {
+      "id": "society_reg",
+      "name": "Society / Trust Registration Certificate",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "trust,society,registration",
+      "custom_fields": []
+    },
+    {
+      "id": "state_noc",
+      "name": "State Government NOC / Essentiality Certificate",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "state government,essentiality,no objection",
+      "custom_fields": []
+    },
+    {
+      "id": "affidavit",
+      "name": "Affidavit / Undertaking",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "affidavit,undertaking",
+      "custom_fields": []
+    },
+    {
+      "id": "prev_eoa",
+      "name": "Previous EoA Letter",
+      "required": true,
+      "has_expiry": true,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date",
+        "expiry_date"
+      ],
+      "keywords": "extension of approval,EoA,approval",
+      "custom_fields": []
+    }
+  ],
+  "New Institution (Approval)": [
+    {
+      "id": "society_reg",
+      "name": "Society / Trust Registration Certificate",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "trust,society,registration",
+      "custom_fields": []
+    },
+    {
+      "id": "land_doc",
+      "name": "Land Ownership / Lease Document",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "land,lease,ownership,sale deed",
+      "custom_fields": []
+    },
+    {
+      "id": "fire_noc",
+      "name": "Fire Safety NOC",
+      "required": true,
+      "has_expiry": true,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date",
+        "expiry_date"
+      ],
+      "keywords": "fire",
+      "custom_fields": []
+    },
+    {
+      "id": "state_noc",
+      "name": "State Government NOC / Essentiality Certificate",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "state government,essentiality,no objection",
+      "custom_fields": []
+    },
+    {
+      "id": "affidavit",
+      "name": "Affidavit / Undertaking",
+      "required": true,
+      "has_expiry": false,
+      "ref_pattern": "",
+      "required_fields": [
+        "institution_name",
+        "issuing_authority",
+        "issued_to",
+        "issue_date"
+      ],
+      "keywords": "affidavit,undertaking",
+      "custom_fields": []
+    }
+  ]
+}
