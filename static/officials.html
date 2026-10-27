@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Officials page · AICTE document validator</title><link rel="stylesheet" href="common.css"></head><body>
+<header><h1>AICTE officials</h1><div class="links"><a href="/">Institution</a><a href="/track.html">Track application</a><a class="on" href="/officials.html">AICTE officials</a></div></header>
+<nav id="nav"></nav>
+<main>
+<section class="tab on" id="t-apps"><div class="split"><div id="applist"></div><div id="detail"><div class="card m">Select an application to see the institution and its uploaded documents.</div></div></div></section>
+
+<section class="tab" id="t-orig">
+  <div class="card"><h2>Add original AICTE-issued document</h2>
+    <div class="m">Upload the original document for an institution. Its details are read from the file and become the record that uploaded documents are checked against. Check the fields before saving.</div>
+    <div class="grid" style="margin:12px 0">
+      <label class="m">Institution<input type="text" id="o_inst" list="insts"></label><datalist id="insts"></datalist>
+      <label class="m">Document type<select id="o_doc_type"></select></label>
+      <label class="m">Original file<input type="file" id="o_file"></label>
+      <label class="m">Issuing authority<input type="text" id="o_issuing_authority"></label>
+      <label class="m">Issued to<input type="text" id="o_issued_to"></label>
+      <label class="m">Reference / certificate no.<input type="text" id="o_ref_no"></label>
+      <label class="m">Issue date<input type="text" id="o_issue_date" placeholder="DD/MM/YYYY"></label>
+      <label class="m">Expiry date<input type="text" id="o_expiry_date" placeholder="DD/MM/YYYY"></label></div>
+    <button class="btn" id="o_save">Save original document</button> <span id="omsg" class="m"></span></div>
+  <div class="card"><h2>Original records on file</h2><table id="refs"></table></div>
+</section>
+
+<section class="tab" id="t-lists">
+  <div class="card"><h2>Checklists</h2>
+    <div class="m">Choose an application type, then open a document to decide which details must be present and valid. Institutions see the updated list as soon as you save.</div><div class="m" id="ocr" style="margin:4px 0 10px"></div>
+    <div class="row"><label class="m col">Application type<select id="at" style="min-width:300px"></select></label><button class="btn sec" id="addType">New application type</button><button class="btn sec" id="delType">Delete type</button></div></div>
+  <div id="adm"></div>
+  <div class="card savebar"><button class="btn sec" id="addDoc">+ Add document</button><button class="btn" id="save">Save checklists</button><span id="smsg" class="m"></span></div>
+</section>
+
+<section class="tab" id="t-audit"><div class="card"><h2>Audit trail</h2><div class="m">A dated record of what institutions and officials have done in this system. Open "Document-by-document results" to see the detail behind an entry.</div>
+  <div class="row" style="margin:10px 0"><select id="afilter" style="max-width:240px"><option value="all">All activity</option><option value="app">Applications and re-checks</option><option value="dec">Decisions (verified / rejected)</option><option value="rec">Original records</option><option value="chk">Checklist changes</option></select>
+  <input type="text" id="asearch" placeholder="Search by institution, application ID or document" style="max-width:340px"></div><div id="aud"></div></div></section>
+</main>
+<script src="common.js"></script>
+<script>
+let CL = {}, DN = {}, AID = null;
+const TABS = {apps: 'Applications', orig: 'Original documents', lists: 'Checklists', audit: 'Audit trail'};
+$('#nav').innerHTML = Object.entries(TABS).map(([k, v]) => `<button data-t="${k}">${v}</button>`).join('');
+$('#nav').onclick = e => { if (e.target.dataset.t) go(e.target.dataset.t); };
+function go(k) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === 't-' + k));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t === k));
+  if (k === 'apps') loadApps(); if (k === 'orig') loadOrig(); if (k === 'audit') loadAudit();
+}
+
+// ----- applications -----
+async function loadApps() {
+  const L = await api('/api/applications');
+  $('#applist').innerHTML = '<div class="m" style="margin-bottom:8px">Applications appear here only after they pass the AI checks.</div>' + L.map(a => `<div class="app ${a.application_id === AID ? 'sel' : ''}" data-id="${a.application_id}"><b>${esc(a.institution)}</b>
+    <div class="m">${esc(a.application_type)}<br>${a.submitted_at.replace('T', ' ')}, ${a.application_id}</div>
+    <div>${Object.entries(a.summary).map(([k, v]) => `<span class="${k}"><b>${v}</b> ${k.toLowerCase()}</span>`).join(' &nbsp; ')}</div>
+    ${a.decision ? `<div class="${a.decision}"><b>${a.decision === 'VERIFIED' ? 'Verified' : 'Rejected'} by officials</b></div>` : '<div class="REVIEW"><b>Pending verification</b></div>'}</div>`).join('')
+    || '<div class="card m">No applications yet. Institutions submit documents on the Institution page.</div>';
+  $('#insts').innerHTML = [...new Set(L.map(a => a.institution))].map(i => `<option value="${esc(i)}">`).join('');
+}
+$('#applist').onclick = e => { const c = e.target.closest('.app'); if (c) openApp(c.dataset.id); };
+async function openApp(id) {
+  AID = id; const a = await api('/api/applications/' + id), r = a.result;
+  $('#detail').innerHTML = `<div class="card"><h2>${esc(a.institution)}</h2>
+    <div class="m">${esc(a.application_type)}. Submitted ${a.submitted_at.replace('T', ' ')}. Application ${id}${a.ai && a.ai.finished_at ? '. Passed AI verification ' + fmtDT(a.ai.finished_at) : ''}${r.reverified_at ? '. Re-checked ' + r.reverified_at.replace('T', ' ') : ''}</div>
+    <div class="row" style="margin:10px 0">${counts(r.summary)}</div>
+    <div class="row"><button class="btn" id="rev">Re-check against records</button><button class="btn sec" id="addo">Add original documents for this institution</button><span id="rmsg" class="m"></span></div></div>`
+    + r.documents.map(d => docCard(d, id, d.file && a.decision ? a.decision.status : null)).join('') + decisionCard(a);
+  $('#rev').onclick = async () => { $('#rmsg').textContent = 'Checking…'; try { await api(`/api/applications/${id}/reverify`, {method: 'POST'}); openApp(id); loadApps(); } catch (e) { $('#rmsg').innerHTML = `<span class="err">${esc(e.message)}</span>`; } };
+  $('#dv').onclick = () => decide(id, a, 'VERIFIED'); $('#dr').onclick = () => decide(id, a, 'REJECTED');
+  $('#addo').onclick = () => { $('#o_inst').value = a.institution === '(not provided)' ? '' : a.institution; go('orig'); };
+  loadApps();
+}
+
+function decisionCard(a) {
+  const dc = a.decision;
+  return `<div class="card" id="decision"><h3>Officials' decision</h3>
+    ${dc ? `<div class="row" style="margin-bottom:10px">${vb(dc.status)}<span class="m">${dc.decided_at.replace('T', ' ')}${dc.reason ? '. Reason: ' + esc(dc.reason) : ''}</span></div>` : '<div class="m" style="margin-bottom:10px">No decision yet. The automated results above are advisory.</div>'}
+    <div class="row"><button class="btn good" id="dv">Mark all documents as verified</button><span style="flex:1"></span>
+      <button class="btn bad" id="dr">Reject documents</button><input type="text" id="dreason" placeholder="Reason for rejection (optional)" style="flex:1;min-width:220px;max-width:420px"><span id="dmsg" class="m"></span></div></div>`;
+}
+async function decide(id, a, st) {
+  const n = a.result.summary, open = (n.FLAGGED || 0) + (n.REVIEW || 0) + (n.MISSING || 0);
+  if (st === 'VERIFIED' && open && !confirm(`${open} document(s) are flagged, need review or are missing. Mark all uploaded documents as verified anyway?`)) return;
+  if (st === 'REJECTED' && !confirm('Reject all documents in this application?')) return;
+  try { await post(`/api/applications/${id}/decision`, {decision: st, reason: $('#dreason').value}); openApp(id); }
+  catch (e) { $('#dmsg').innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+
+// ----- original documents -----
+const OF = ['issuing_authority', 'issued_to', 'ref_no', 'issue_date', 'expiry_date'];
+$('#o_file').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return; const fd = new FormData(); fd.append('file', f);
+  try {
+    const r = await api('/api/originals/extract', {method: 'POST', body: fd});
+    OF.forEach(k => $('#o_' + k).value = r.fields[k] || ''); if (!$('#o_inst').value) $('#o_inst').value = r.fields.institution_name || '';
+    $('#omsg').textContent = r.text_found ? 'Fields read from the file. Check them before saving.' : 'Little text could be read from this file. Enter the fields by hand.';
+  } catch (x) { $('#omsg').innerHTML = `<span class="err">Could not read the file: ${esc(x.message)}</span>`; }
+};
+$('#o_save').onclick = async () => {
+  const fd = new FormData(); fd.append('institution_name', $('#o_inst').value); fd.append('doc_type', $('#o_doc_type').value);
+  OF.forEach(k => fd.append(k, $('#o_' + k).value)); const f = $('#o_file').files[0]; if (f) fd.append('file', f);
+  try {
+    await api('/api/originals', {method: 'POST', body: fd}); $('#omsg').textContent = 'Saved. Use "Re-check against records" on an application to apply it.';
+    $('#o_file').value = ''; OF.forEach(k => $('#o_' + k).value = ''); loadOrig();
+  } catch (x) { $('#omsg').innerHTML = `<span class="err">${esc(x.message)}</span>`; }
+};
+async function loadOrig() {
+  const L = (await api('/api/reference')).sort((a, b) => (a.institution_name || '').localeCompare(b.institution_name || ''));
+  $('#refs').innerHTML = '<tr><th>Institution</th><th>Document</th><th>Ref. no.</th><th>Issued to</th><th>Issue</th><th>Expiry</th><th>File</th><th></th></tr>' + L.map(r => `<tr><td>${esc(r.institution_name)}</td><td>${esc(DN[r.doc_type] || r.doc_type)}</td><td>${esc(r.ref_no)}</td><td>${esc(r.issued_to)}</td><td>${esc(r.issue_date)}</td><td>${esc(r.expiry_date)}</td>
+    <td>${r.path ? `<a href="/api/originals/${r.id}/file" target="_blank" rel="noopener">Open</a>` : '<span class="m">none</span>'}</td><td><button class="btn x" data-r="${r.id}">Delete</button></td></tr>`).join('');
+}
+$('#refs').onclick = async e => { if (e.target.dataset.r) { await api('/api/reference/' + e.target.dataset.r, {method: 'DELETE'}); loadOrig(); } };
+
+// ----- checklists -----
+let OPEN = new Set();
+const docs = () => CL[$('#at').value] || [];
+function fillTypes() {
+  const b = $('#at').value; $('#at').innerHTML = Object.keys(CL).map(t => `<option>${esc(t)}</option>`).join(''); if (CL[b]) $('#at').value = b;
+  DN = {}; Object.values(CL).flat().forEach(d => DN[d.id] = d.name);
+  $('#o_doc_type').innerHTML = Object.entries(DN).map(([i, n]) => `<option value="${i}">${esc(n)}</option>`).join('');
+}
+function renderAdm(force) {
+  OPEN = new Set([...document.querySelectorAll('#adm details[open]')].map(x => x.dataset.id)); if (force) OPEN.add(force);
+  $('#adm').innerHTML = docs().map((d, i) => {
+    const rf = d.required_fields || DEF, cf = d.custom_fields || [];
+    return `<details class="doc" data-id="${d.id}" ${OPEN.has(d.id) ? 'open' : ''}><summary><b>${i + 1}. ${esc(d.name)}</b><span class="chip">${d.required ? 'Required' : 'Optional'}</span><span class="chip">${rf.length + cf.length} fields checked</span>${d.has_expiry ? '<span class="chip">Has expiry</span>' : ''}</summary>
+      <div class="dbody">
+        <div class="grid"><label class="m col">Document name<input type="text" value="${esc(d.name)}" data-i="${i}" data-k="name"></label>
+          <label class="m col">Reference number format (regex, optional)<input type="text" value="${esc(d.ref_pattern)}" data-i="${i}" data-k="ref_pattern" placeholder="e.g. FS/[A-Z]+/\\d{4}/\\d+"></label></div>
+        <div class="row" style="margin-top:10px"><label><input type="checkbox" ${d.required ? 'checked' : ''} data-i="${i}" data-k="required"> This document is required</label>
+          <label><input type="checkbox" ${d.has_expiry ? 'checked' : ''} data-i="${i}" data-k="has_expiry"> It has an expiry date (the expiry date is then also checked)</label></div>
+        <h4>Standard fields that must be present and valid</h4>
+        <div class="fgrid">${Object.entries(FL).map(([k, v]) => `<label class="fchip ${rf.includes(k) ? 'on' : ''}"><input type="checkbox" data-i="${i}" data-f="${k}" ${rf.includes(k) ? 'checked' : ''}> ${v}</label>`).join('')}</div>
+        <h4>Additional fields</h4><div class="m">Add any other detail that must appear in this document, for example "Approved intake". The checker looks for a line written as <i>Field name: value</i> and can also test the value against an allowed format.</div>
+        ${cf.map((c, j) => `<div class="row cf"><input type="text" value="${esc(c.label)}" data-i="${i}" data-c="${j}" data-ck="label" placeholder="Field name"><input type="text" value="${esc(c.pattern)}" data-i="${i}" data-c="${j}" data-ck="pattern" placeholder="Allowed format (regex), optional"><button class="btn x" data-delc="${i},${j}">Remove</button></div>`).join('')}
+        <button class="btn sec" data-addc="${i}" style="margin-top:8px">+ Add a field</button>
+        <h4>Right-document check</h4><label class="m col">Text must mention at least one of these words (comma separated)<input type="text" value="${esc(d.keywords)}" data-i="${i}" data-k="keywords" placeholder="e.g. fire, safety"></label>
+        <div style="text-align:right"><button class="btn x" data-del="${i}">Remove this document</button></div></div></details>`;
+  }).join('') || '<div class="card m">This application type has no documents yet. Use "Add document".</div>';
+}
+$('#at').onchange = () => renderAdm();
+$('#adm').oninput = e => {
+  const t = e.target, i = t.dataset.i; if (i == null) return; const d = docs()[i];
+  if (t.dataset.f) { const s = new Set(d.required_fields || DEF); t.checked ? s.add(t.dataset.f) : s.delete(t.dataset.f); d.required_fields = Object.keys(FL).filter(k => s.has(k)); t.closest('.fchip').classList.toggle('on', t.checked); }
+  else if (t.dataset.ck) d.custom_fields[+t.dataset.c][t.dataset.ck] = t.value;
+  else if (t.dataset.k) { d[t.dataset.k] = t.type === 'checkbox' ? t.checked : t.value; if (t.dataset.k === 'name') t.closest('details').querySelector('summary b').textContent = (+i + 1) + '. ' + t.value; }
+};
+$('#adm').onclick = e => {
+  const t = e.target, D = docs();
+  if (t.dataset.del != null && confirm('Remove this document from the checklist?')) { D.splice(+t.dataset.del, 1); renderAdm(); }
+  if (t.dataset.addc != null) {
+    const d = D[+t.dataset.addc]; (d.custom_fields = d.custom_fields || []).push({label: '', pattern: ''}); renderAdm(d.id);
+    const inp = [...document.querySelectorAll(`details[data-id="${d.id}"] input[data-ck="label"]`)].pop(); if (inp) inp.focus();
+  }
+  if (t.dataset.delc != null) { const [i, j] = t.dataset.delc.split(','); D[+i].custom_fields.splice(+j, 1); renderAdm(); }
+};
+$('#addDoc').onclick = () => { const id = 'doc_' + Math.random().toString(36).slice(2, 7); docs().push({id, name: 'New document', required: true, has_expiry: false, ref_pattern: '', required_fields: DEF.slice(), custom_fields: [], keywords: ''}); renderAdm(id); };
+$('#addType').onclick = () => { const n = (prompt('Name of the new application type') || '').trim(); if (n && !CL[n]) { CL[n] = []; fillTypes(); $('#at').value = n; renderAdm(); } };
+$('#delType').onclick = () => { if ($('#at').value && confirm('Delete this application type and its document list?')) { delete CL[$('#at').value]; fillTypes(); renderAdm(); } };
+$('#save').onclick = async () => {
+  Object.values(CL).flat().forEach(d => d.custom_fields = (d.custom_fields || []).filter(c => (c.label || '').trim()));
+  try { await post('/api/checklists', CL, 'PUT'); $('#smsg').innerHTML = '<span class="s-ok">Saved.</span> The Institution page now uses the updated checklist.'; fillTypes(); renderAdm(); }
+  catch (e) { $('#smsg').innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+};
+
+// ----- audit trail -----
+let AUD = [];
+const AFILTER = {all: null, app: ['validation_run', 'reverified', 'application_submitted', 'ai_passed', 'ai_rejected', 'ai_error'], dec: ['application_verified', 'application_rejected', 'ai_rejected'], rec: ['original_added', 'reference_deleted'], chk: ['checklist_updated']};
+const AKIND = {validation_run: ['Application submitted', 'info'], application_submitted: ['Application submitted', 'info'], ai_passed: ['AI checks passed', 'ok'], ai_rejected: ['Rejected by AI model', 'bad'], ai_error: ['AI check error', 'warn'], reverified: ['Re-checked', 'info'], application_verified: ['Verified', 'ok'], application_rejected: ['Rejected', 'bad'],
+  original_added: ['Original added', 'info'], reference_deleted: ['Original removed', 'warn'], checklist_updated: ['Checklist changed', 'warn']};
+const sumText = s => s ? ' Result: ' + Object.entries(s).map(([k, v]) => `${v} ${VW[k] || k.toLowerCase()}`).join(', ') + '.' : '';
+function auditText(a) {
+  const who = `<b>${esc(a.institution || 'An institution')}</b>`, id = a.application_id ? ` (application ${a.application_id})` : '';
+  switch (a.event) {
+    case 'application_submitted': return `${who} submitted an application for <b>${esc(a.application_type)}</b>${id}. AI verification started.`;
+    case 'ai_passed': return `The AI model checked every document of ${who}${id}. All checks passed, so the application was sent to AICTE officials.${sumText(a.summary)}`;
+    case 'ai_rejected': return `The AI model rejected the application of ${who}${id}. It was not sent to officials.<br>${esc(a.reason || '').replace(/\n/g, '<br>')}`;
+    case 'ai_error': return `The AI check could not finish for ${who}${id} (${esc(a.error)}). The application was sent to officials for a manual check.`;
+    case 'validation_run': return `${who} submitted an application for <b>${esc(a.application_type)}</b>${id}.${sumText(a.summary)}`;
+    case 'reverified': return `An official re-checked the application of ${who}${id} against the latest original records.${sumText(a.summary)}`;
+    case 'application_verified': return `An official marked all documents of ${who}${id} as verified.`;
+    case 'application_rejected': return `An official rejected the documents of ${who}${id}. ${a.reason ? 'Reason given: ' + esc(a.reason) : 'No reason was given.'}`;
+    case 'original_added': return `An original <b>${esc(DN[a.doc_type] || a.doc_type)}</b> was added to the records for ${who}${a.file ? ' (file ' + esc(a.file) + ')' : ''}.`;
+    case 'reference_deleted': return `An original record was removed from the records (record ${esc(a.id)}).`;
+    case 'checklist_updated': return `The document checklists were saved. Application types: ${esc((a.types || []).join(', '))}.`;
+    default: return esc(a.event);
+  }
+}
+function auditDetail(a) {
+  const D = a.documents; if (!Array.isArray(D) || !D.length) return '';
+  const nm = x => esc(DN[x] || x);
+  if (typeof D[0] === 'string') return `<div class="m">Documents covered: ${D.map(nm).join(', ')}</div>`;
+  return `<details><summary>Document-by-document results</summary><table><tr><th>Document</th><th>Result</th><th>Comparison with original</th><th>Problems found</th></tr>${D.map(x => `<tr><td>${nm(x.doc)}</td><td>${vb(x.verdict)}</td><td>${esc(x.ref_status || '-')}</td><td>${x.codes && x.codes.length ? x.codes.map(c => esc(CODE_TEXT[c] || c)).join('; ') : 'None'}</td></tr>`).join('')}</table></details>`;
+}
+function renderAudit() {
+  const f = AFILTER[$('#afilter').value], q = $('#asearch').value.trim().toLowerCase();
+  const L = AUD.filter(a => (!f || f.includes(a.event)) && (!q || (JSON.stringify(a) + (a.documents || []).map(x => DN[x.doc || x] || '').join(' ')).toLowerCase().includes(q)));
+  $('#aud').innerHTML = L.map(a => { const k = AKIND[a.event] || ['Other', 'info']; return `<div class="aitem"><div class="atime">${fmtDT(a.ts)}</div><div><span class="tag ${k[1]}">${k[0]}</span>${auditText(a)}${auditDetail(a)}</div></div>`; }).join('') || '<div class="m">No matching activity.</div>';
+}
+async function loadAudit() { AUD = await api('/api/audit'); renderAudit(); }
+$('#afilter').onchange = renderAudit; $('#asearch').oninput = renderAudit;
+
+$('#o_file').accept = ACCEPT;
+(async () => { CL = await api('/api/checklists'); fillTypes(); renderAdm(); go('apps'); ocrStatus(); })();
+</script></body></html>

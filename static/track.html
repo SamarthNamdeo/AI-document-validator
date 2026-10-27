@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Track your application · AICTE document validator</title><link rel="stylesheet" href="common.css"></head><body>
+<header><h1>Track your application</h1><div class="links"><a href="/">Institution</a><a class="on" href="/track.html">Track application</a><a href="/officials.html">AICTE officials</a></div></header>
+<main>
+  <div class="card"><h2>Find your application</h2><div class="m">Enter the Application ID shown when you submitted your documents.</div>
+    <div class="row" style="margin-top:10px"><input type="text" id="tid" placeholder="Application ID, e.g. 3F9A12BC" style="max-width:280px"><button class="btn" id="tgo">Track</button><span id="tmsg" class="m"></span></div>
+    <div id="recent" style="margin-top:12px"></div></div>
+  <div id="out"></div>
+</main>
+<script src="common.js"></script>
+<script>
+const ST = {
+  AI_VERIFICATION: ['AI verification in progress', 'REVIEW', 'The AI model is checking each document: institution name match, edits, AI-generated content, burns, cuts, blur, wrong documents and comparison with the originals.'],
+  PENDING_VERIFICATION: ['Pending verification', 'REVIEW', 'Your documents passed the AI checks and were sent to AICTE officials. They are waiting for an official to verify them.'],
+  VERIFIED: ['Verified and accepted', 'VERIFIED', 'AICTE officials have verified all the documents you uploaded.'],
+  REJECTED: ['Rejected', 'FLAGGED', 'This application has been rejected.']
+};
+let timer = null;
+async function trackApp(id, quiet) {
+  id = (id || '').trim().toUpperCase(); if (!id) return; clearTimeout(timer);
+  if (!quiet) $('#tmsg').textContent = 'Looking up…'; history.replaceState(null, '', '#' + id);
+  try {
+    const t = await api('/api/track/' + encodeURIComponent(id)); show(t); $('#tmsg').textContent = '';
+    if (t.status === 'AI_VERIFICATION') timer = setTimeout(() => trackApp(id, true), 3000);  // refresh while the model is working
+  } catch (e) { $('#out').innerHTML = ''; $('#tmsg').innerHTML = '<span class="err">No application found with this ID. Check the ID shown when you submitted.</span>'; }
+}
+function show(t) {
+  const s = t.status, [label, cls, note] = ST[s] || ST.PENDING_VERIFICATION, ai = s === 'AI_VERIFICATION', rej = s === 'REJECTED', byAI = rej && t.rejected_by === 'AI model', pend = s === 'PENDING_VERIFICATION', done = rej || s === 'VERIFIED';
+  const step = (title, sub, state) => `<div class="step ${state}"><b>${title}</b><div class="m">${sub}</div></div>`;
+  const aiSub = ai ? 'In progress' : byAI ? 'Rejected ' + fmtDT(t.decided_at) : 'Passed' + (t.ai_finished_at ? ' ' + fmtDT(t.ai_finished_at) : '');
+  const offRow = byAI ? 'Not sent to officials (rejected by the AI model)' : ai ? 'Not started' : pend ? 'Pending' : (rej ? 'Rejected on ' : 'Verified on ') + fmtDT(t.decided_at);
+  $('#out').innerHTML = `<div class="card"><div class="m">${esc(t.application_type)} · Application ${esc(t.application_id)}</div><h2 style="margin:4px 0 10px">${esc(t.institution)}</h2>
+    <span class="v stat ${cls}">${label}</span><p style="margin:10px 0 0">${rej ? (byAI ? 'The AI model rejected this application during its checks, so it was not sent to AICTE officials.' : 'An AICTE official rejected this application.') : note}</p>
+    ${rej ? `<div class="reason"><b>Reason for rejection</b> <span class="m">(by ${esc(t.rejected_by)})</span><div style="white-space:pre-line;margin-top:4px">${t.reason ? esc(t.reason) : 'The official did not give a reason. Please contact AICTE for details.'}</div></div>` : ''}</div>
+  <div class="card"><div class="steps">${step('Application submitted', fmtDT(t.submitted_at), 'done')}${step('AI verification', aiSub, ai ? 'cur' : byAI ? 'bad' : 'done')}
+    ${step('Pending verification', byAI ? 'Not sent to officials' : ai ? 'Waiting' : pend ? 'With AICTE officials' : 'Completed', byAI || ai ? 'todo' : pend ? 'cur' : 'done')}
+    ${step(rej ? 'Rejected' : 'Verified and accepted', done ? fmtDT(t.decided_at) : 'Awaiting decision', done ? (rej ? 'bad' : 'done') : 'todo')}</div>
+    <table class="kv" style="margin-top:14px"><tr><td>Applied on</td><td>${fmtDT(t.submitted_at)}</td></tr>
+    <tr><td>AI verification</td><td>${ai ? 'In progress' : byAI ? 'Rejected on ' + fmtDT(t.decided_at) : 'Passed' + (t.ai_finished_at ? ' on ' + fmtDT(t.ai_finished_at) : '')}</td></tr>
+    <tr><td>Officials' verification</td><td>${offRow}</td></tr></table></div>
+  <div class="card"><h3>Documents you uploaded</h3><table><tr><th>#</th><th>Document</th><th>File</th><th>Status</th><th></th></tr>${t.documents.map((d, i) => `<tr><td>${i + 1}</td><td>${esc(d.doc_name)}</td>
+    <td>${d.uploaded ? esc(d.file) : '<span class="m">-</span>'}</td><td>${d.uploaded ? '<b class="s-ok">Uploaded</b>' : d.optional ? '<span class="m">Not uploaded (optional)</span>' : '<b class="s-missing">Not uploaded</b>'}</td>
+    <td>${d.uploaded ? `<a href="/api/track/${encodeURIComponent(t.application_id)}/file/${encodeURIComponent(d.doc_id)}" target="_blank" rel="noopener">Open</a>` : ''}</td></tr>`).join('')}</table>
+    <div class="m">Uploaded on ${fmtDT(t.submitted_at)}.</div></div>`;
+}
+function recents() {
+  let L = []; try { L = JSON.parse(localStorage.getItem('aicte_apps') || '[]'); } catch (e) {}
+  $('#recent').innerHTML = L.length ? '<div class="m">Applications submitted from this browser:</div><div class="row" style="margin-top:4px">' + L.map(x => `<button class="btn sec" data-id="${esc(x.id)}">${esc(x.institution || 'Application')} · ${esc(x.id)}</button>`).join('') + '</div>' : '';
+}
+$('#recent').onclick = e => { const id = e.target.dataset.id; if (id) { $('#tid').value = id; trackApp(id); } };
+$('#tgo').onclick = () => trackApp($('#tid').value);
+$('#tid').onkeydown = e => { if (e.key === 'Enter') trackApp($('#tid').value); };
+recents();
+const h = decodeURIComponent(location.hash.slice(1)); if (h) { $('#tid').value = h; trackApp(h); }
+</script></body></html>

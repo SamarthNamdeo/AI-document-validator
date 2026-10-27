@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Institution page · AICTE document validator</title><link rel="stylesheet" href="common.css"></head><body>
+<header>
+  <h1>AICTE document validator</h1>
+  <label>Application type<select id="type"></select></label>
+  <label>Institution name (required)<input type="text" id="inst" placeholder="As printed on your documents, e.g. LNCT Group of Colleges, Bhopal"></label>
+  <div class="links"><a class="on" href="/">Institution</a><a href="/track.html">Track application</a><a href="/officials.html">AICTE officials</a></div>
+</header>
+<main>
+  <div class="card"><h2>Required documents</h2>
+    <div class="m">Enter the institution name and upload every required document. Then the verify button becomes active. Text is read automatically (OCR for scans and photos). AICTE officials can change this list.</div>
+    <div class="m" id="ocr"></div><div id="slots"></div>
+    <p><button class="btn" id="go" disabled>Verify all documents</button> <span id="need" class="m"></span></p></div>
+  <div id="res"></div>
+</main>
+<script src="common.js"></script>
+<script>
+let CL = {}, BUSY = false;
+const list = () => CL[$('#type').value] || [];
+async function init() {
+  CL = await api('/api/checklists');
+  $('#type').innerHTML = Object.keys(CL).map(t => `<option>${esc(t)}</option>`).join('');
+  slots(); ocrStatus();
+}
+function slots() {
+  $('#slots').innerHTML = list().map((d, i) => `<div class="slot"><div><b>${i + 1}. ${esc(d.name)}</b><br><span class="m">${d.required !== false ? 'Required' : 'Optional'}. Must show: ${[...new Set([...(d.required_fields || DEF), ...(d.has_expiry ? ['expiry_date'] : [])])].map(k => FL[k]).concat((d.custom_fields || []).map(c => c.label)).join(', ').toLowerCase()}</span></div>
+    <div><input type="file" data-id="${d.id}" accept="${ACCEPT}"><div class="m fs" data-id="${d.id}"></div></div></div>`).join('');
+  gate();
+}
+// The verify button stays disabled until the name is entered and every required document is selected.
+function gate() {
+  const inst = $('#inst').value.trim(), has = {};
+  document.querySelectorAll('#slots input[type=file]').forEach(i => has[i.dataset.id] = !!i.files[0]);
+  const missing = list().filter(d => d.required !== false && !has[d.id]).map(d => d.name), todo = [];
+  if (!inst) todo.push('Enter the institution name. It is needed to check the name on every document.');
+  if (missing.length) todo.push('Upload the required documents: ' + missing.join(', ') + '.');
+  $('#need').innerHTML = todo.length ? todo.map(esc).join('<br>') : '<span class="s-ok">Ready to verify.</span>';
+  $('#go').disabled = BUSY || todo.length > 0;
+  document.querySelectorAll('#slots .fs').forEach(e => e.innerHTML = has[e.dataset.id] ? '<span class="s-ok">File selected</span>' : '');
+}
+$('#type').onchange = () => { slots(); $('#res').innerHTML = ''; };
+$('#inst').oninput = gate; $('#slots').onchange = gate;
+
+$('#go').onclick = async () => {
+  const fd = new FormData(); fd.append('application_type', $('#type').value); fd.append('institution_name', $('#inst').value.trim());
+  document.querySelectorAll('#slots input[type=file]').forEach(i => { if (i.files[0]) fd.append('f__' + i.dataset.id, i.files[0]); });
+  BUSY = true; gate(); $('#res').innerHTML = ''; let err = '';
+  try {
+    const r = await api('/api/validate', {method: 'POST', body: fd});
+    try { const L = JSON.parse(localStorage.getItem('aicte_apps') || '[]'); L.unshift({id: r.application_id, institution: $('#inst').value.trim()}); localStorage.setItem('aicte_apps', JSON.stringify(L.slice(0, 20))); } catch (e) {}
+    await watch(r.application_id);
+  } catch (e) { err = e.message; }
+  BUSY = false; gate(); if (err) $('#need').innerHTML = `<span class="err">${esc(err)}</span>`;
+};
+// Poll until the AI model has finished checking, then show the outcome and the extracted details.
+async function watch(id) {
+  $('#res').innerHTML = `<div class="card"><h2>Application ${id}</h2><div class="row"><span class="spin"></span><b>AI verification in progress</b></div>
+    <div class="m">The model is matching the institution name, checking each document for edits, AI generation, burns, cuts, blur and wrong documents, and comparing it with the originals.</div></div>`;
+  for (let i = 0; i < 400; i++) {
+    const t = await api('/api/track/' + id);
+    if (t.status !== 'AI_VERIFICATION') return finish(id, t);
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  $('#res').innerHTML = `<div class="card">Still checking. You can close this page and follow progress on the <a href="/track.html#${id}">Track application</a> page.</div>`;
+}
+async function finish(id, t) {
+  const r = await api(`/api/track/${id}/result`), rej = t.status === 'REJECTED';
+  const head = rej ? `<div class="banner bad"><h2>Rejected by the AI model</h2><div>The application was not sent to AICTE officials. Correct the problems below and apply again.</div><div style="white-space:pre-line;margin-top:8px">${esc(t.reason)}</div></div>`
+    : `<div class="banner ok"><h2>Passed the AI checks</h2><div>Your application is now <b>pending verification</b> by AICTE officials.</div></div>`;
+  $('#res').innerHTML = head + `<div class="card"><h2>Application ${id}</h2><div class="row">${counts(r.summary)}</div>
+    <div class="m">${esc(t.application_type)}. <a href="/track.html#${id}">Track this application</a> and keep this ID. Results are advisory; final decisions rest with AICTE officials.</div></div>` + r.documents.map(d => docCard(d)).join('');
+}
+init();
+</script></body></html>
