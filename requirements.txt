@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-multipart
+pillow
+numpy
+pymupdf
+pypdf
+# OCR for images and scanned PDFs: installed by pip alone (models are inside the package), no separate program needed
+rapidocr-onnxruntime; python_version < "3.13"
+rapidocr; python_version >= "3.13"
+onnxruntime; python_version >= "3.13"
+# optional: used first if the Tesseract program is installed
+pytesseract
